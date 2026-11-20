@@ -58,7 +58,7 @@ const reservaSchema = new mongoose.Schema(
         delete ret.__v;
       },
     },
-  }
+  },
 );
 
 const Reserva = mongoose.model("Reserva", reservaSchema);

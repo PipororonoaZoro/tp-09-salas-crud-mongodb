@@ -11,7 +11,7 @@ const { crearMiddlewareValidarReserva } = require("./middleware/reservas");
 const { crearControladorReservas } = require("./controladores/reservas");
 const { crearRouterReservas } = require("./rutas/reservas");
 
-const { crearApiReservasRouter } = require("./rutas/api-reservas"); 
+const { crearApiReservasRouter } = require("./rutas/api-reservas");
 
 function crearApp(servicioReservas, configuracion) {
   const app = express();
@@ -36,7 +36,9 @@ function crearApp(servicioReservas, configuracion) {
   // Interceptor para JSON mal formado (devuelve 400 en lugar de 500)
   app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-      return res.status(400).json({ error: "JSON mal formado o sintaxis inválida." });
+      return res
+        .status(400)
+        .json({ error: "JSON mal formado o sintaxis inválida." });
     }
     next(err);
   });
@@ -79,7 +81,7 @@ function crearApp(servicioReservas, configuracion) {
     if (req.originalUrl.startsWith("/api/")) {
       return res.status(404).json({ error: "Endpoint de API no encontrado." });
     }
-    
+
     res.status(404).render("no-encontrado", {
       titulo: "Página no encontrada",
       mensaje: "La dirección solicitada no existe.",
@@ -91,7 +93,7 @@ function crearApp(servicioReservas, configuracion) {
     void next;
 
     console.error("Error interno capturado:", err.message);
-    
+
     if (req.originalUrl.startsWith("/api/")) {
       return res.status(500).json({ error: "Fallo interno en la operación." });
     }

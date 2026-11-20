@@ -9,13 +9,19 @@ function crearApiReservasRouter(servicioReservas) {
     try {
       let { sala } = req.query;
 
-      // Si envían parámetros repetidos (array) o un objeto anidado, rechazamos con 400
       if (sala !== undefined) {
-        if (Array.isArray(sala) || (typeof sala === "object" && sala !== null)) {
-          return res.status(400).json({ error: "Parámetro de sala inválido o repetido." });
+        if (
+          Array.isArray(sala) ||
+          (typeof sala === "object" && sala !== null)
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Parámetro de sala inválido o repetido." });
         }
         if (typeof sala !== "string") {
-          return res.status(400).json({ error: "El parámetro sala debe ser un texto." });
+          return res
+            .status(400)
+            .json({ error: "El parámetro sala debe ser un texto." });
         }
       }
 
@@ -49,19 +55,180 @@ function crearApiReservasRouter(servicioReservas) {
   // POST /api/reservas
   router.post("/", async (req, res) => {
     try {
-      const datosCliente = req.body;
+      const datos = req.body;
 
-      if (!datosCliente || typeof datosCliente !== "object" || Array.isArray(datosCliente)) {
-        return res.status(400).json({ error: "Cuerpo de solicitud ausente o inválido." });
+      if (!datos || typeof datos !== "object" || Array.isArray(datos)) {
+        return res
+          .status(400)
+          .json({ error: "Cuerpo de solicitud ausente o inválido." });
       }
 
-      const nuevaReserva = await servicioReservas.crearReserva(datosCliente || datosCliente);
-      
-      // Usamos el id textual público configurado en Mongoose
+      // Validar que el cliente no intente inyectar _id o estado al crear
+      if (
+        datos._id !== undefined ||
+        datos.id !== undefined ||
+        datos.estado !== undefined
+      ) {
+        return res
+          .status(400)
+          .json({ error: "No se permite asignar _id, id ni estado al crear." });
+      }
+
+      const nuevaReserva = await servicioReservas.crearReserva(datos);
+
       res.setHeader("Location", `/api/reservas/${nuevaReserva.id}`);
       return res.status(201).json(nuevaReserva);
     } catch (error) {
-      return res.status(400).json({ error: "Creación inválida.", detalle: error.message });
+      return res
+        .status(400)
+        .json({ error: "Creación inválida.", detalle: error.message });
+    }
+  });
+
+  // PUT /api/reservas/:id (Reemplazo completo: exige los 7 campos editables)
+  router.put("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const datos = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "ID mal formado." });
+      }
+
+      if (!datos || typeof datos !== "object" || Array.isArray(datos)) {
+        return res
+          .status(400)
+          .json({ error: "Cuerpo de solicitud ausente o inválido." });
+      }
+
+      // Validar campos desconocidos o prohibidos en PUT
+      const permitidos = [
+        "estudiante",
+        "email",
+        "sala",
+        "fecha",
+        "turno",
+        "personas",
+        "estado",
+      ];
+      const claves = Object.keys(datos);
+
+      // PUT exige exactamente los 7 campos (ninguno puede faltar)
+      if (claves.length !== 7 || !permitidos.every((p) => claves.includes(p))) {
+        return res
+          .status(400)
+          .json({ error: "PUT exige exactamente los siete campos editables." });
+      }
+
+      // Validar que personas no sea array u objeto
+      if (
+        Array.isArray(datos.personas) ||
+        (typeof datos.personas === "object" && datos.personas !== null)
+      ) {
+        return res.status(400).json({
+          error: "El campo personas no puede ser un arreglo u objeto.",
+        });
+      }
+
+      const reservaActualizada =
+        await servicioReservas.actualizarReservaCompleta(id, datos);
+
+      if (!reservaActualizada) {
+        return res
+          .status(404)
+          .json({ error: "Recurso no encontrado para actualizar." });
+      }
+
+      return res.status(200).json(reservaActualizada);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Actualización completa inválida.",
+        detalle: error.message,
+      });
+    }
+  });
+
+  // PATCH /api/reservas/:id (Actualización parcial: solo personas y/o estado)
+  router.patch("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const datos = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "ID mal formado." });
+      }
+
+      if (
+        !datos ||
+        typeof datos !== "object" ||
+        Array.isArray(datos) ||
+        Object.keys(datos).length === 0
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Cuerpo de solicitud ausente, vacío o inválido." });
+      }
+
+      // Validar campos permitidos en PATCH (solo personas, estado o $set explícito si aplica)
+      const permitidos = ["personas", "estado"];
+      const claves = Object.keys(datos);
+
+      if (!claves.every((c) => permitidos.includes(c))) {
+        return res
+          .status(400)
+          .json({ error: "PATCH solo admite modificar personas o estado." });
+      }
+
+      if (datos.personas !== undefined) {
+        if (
+          Array.isArray(datos.personas) ||
+          (typeof datos.personas === "object" && datos.personas !== null)
+        ) {
+          return res.status(400).json({
+            error: "El campo personas no puede ser un arreglo u objeto.",
+          });
+        }
+      }
+
+      const reservaActualizada =
+        await servicioReservas.actualizarReservaParcial(id, datos);
+
+      if (!reservaActualizada) {
+        return res
+          .status(404)
+          .json({ error: "Recurso no encontrado para modificar." });
+      }
+
+      return res.status(200).json(reservaActualizada);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Actualización parcial inválida.",
+        detalle: error.message,
+      });
+    }
+  });
+
+  // DELETE /api/reservas/:id (Eliminación física)
+  router.delete("/:id", async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "ID mal formado." });
+      }
+
+      const resultado = await servicioReservas.eliminarReserva(id);
+
+      if (!resultado) {
+        return res
+          .status(404)
+          .json({ error: "Recurso no encontrado para eliminar." });
+      }
+
+      // El PDF exige estrictamente 204 sin cuerpo si eliminó
+      return res.status(204).send();
+    } catch (error) {
+      next(error);
     }
   });
 

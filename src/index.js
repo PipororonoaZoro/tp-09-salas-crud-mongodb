@@ -25,22 +25,26 @@ async function iniciarSistema() {
 
     // 5. Cierre ordenado ante señales del sistema (SIGINT / SIGTERM)
     const cerrarSistemaOrdenado = async (senal) => {
-      console.log(`\n[${senal}] Recibida señal de interrupción. Cerrando servidor HTTP y base de datos...`);
+      console.log(
+        `\n[${senal}] Recibida señal de interrupción. Cerrando servidor HTTP y base de datos...`,
+      );
       servidor.close(async () => {
         try {
           await mongoose.connection.close();
-          console.log('Conexión a MongoDB cerrada de forma limpia.');
+          console.log("Conexión a MongoDB cerrada de forma limpia.");
           process.exit(0);
         } catch (error) {
-          console.error('Error al cerrar la conexión de la base de datos:', error);
+          console.error(
+            "Error al cerrar la conexión de la base de datos:",
+            error,
+          );
           process.exit(1);
         }
       });
     };
 
-    process.on('SIGINT', () => cerrarSistemaOrdenado('SIGINT'));
-    process.on('SIGTERM', () => cerrarSistemaOrdenado('SIGTERM'));
-
+    process.on("SIGINT", () => cerrarSistemaOrdenado("SIGINT"));
+    process.on("SIGTERM", () => cerrarSistemaOrdenado("SIGTERM"));
   } catch (error) {
     console.error(`Error al iniciar el servidor: ${error.message}`);
     process.exit(1);

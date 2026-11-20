@@ -29,7 +29,9 @@ function crearControladorReservas(servicioReservas) {
 
     mostrarDetalle: async (req, res, next) => {
       try {
-        const reserva = await servicioReservas.obtenerReservaPorId(req.params.id);
+        const reserva = await servicioReservas.obtenerReservaPorId(
+          req.params.id,
+        );
 
         if (!reserva) {
           return res.status(404).render("no-encontrado", {
